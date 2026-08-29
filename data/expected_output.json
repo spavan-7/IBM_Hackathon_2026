@@ -1,0 +1,17 @@
+[
+  {
+    "personId": "101",
+    "recordType": "ST",
+    "serviceDate": "2026-08-01"
+  },
+  {
+    "personId": "101",
+    "recordType": "GA",
+    "serviceDate": "2026-08-01"
+  },
+  {
+    "personId": "102",
+    "recordType": "ST",
+    "serviceDate": "2026-08-05"
+  }
+]

@@ -1,0 +1,30 @@
+[
+  {
+    "eventId": "evt-001",
+    "personId": "101",
+    "assignmentClass": "ST",
+    "serviceDate": "2026-08-01",
+    "event": {"employee": "John", "source": "ST"}
+  },
+  {
+    "eventId": "evt-002",
+    "personId": "101",
+    "assignmentClass": "GA",
+    "serviceDate": null,
+    "event": {"employee": "John", "source": "GA"}
+  },
+  {
+    "eventId": "evt-003",
+    "personId": "102",
+    "assignmentClass": "ST",
+    "serviceDate": "2026-08-05",
+    "event": {"employee": "Alice", "source": "ST"}
+  },
+  {
+    "eventId": "evt-004",
+    "personId": "103",
+    "assignmentClass": "GA",
+    "serviceDate": null,
+    "event": {"employee": "Bob", "source": "GA"}
+  }
+]
