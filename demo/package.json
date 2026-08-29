@@ -1,0 +1,13 @@
+{
+  "name": "pipeline-demo",
+  "version": "1.0.0",
+  "description": "Employee Enrichment Pipeline — Live Demo UI (IBM Hackathon 2026)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "demo":  "node pipeline_demo.js"
+  },
+  "dependencies": {
+    "express": "^4.18.0"
+  }
+}

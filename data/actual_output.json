@@ -13,19 +13,5 @@
     "personId": "102",
     "recordType": "ST",
     "serviceDate": "2026-08-05"
-  },
-  {
-    "personId": "103",
-    "recordType": "GA",
-    "serviceDate": null
-  },
-  {
-    "personId": "101"
-    
-  },
-  {
-    "personId": "102"
-    
   }
-
 ]

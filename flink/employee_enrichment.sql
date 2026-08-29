@@ -38,14 +38,15 @@ FROM GA_OUTPUT ga
 LEFT JOIN ST_OUTPUT st
     ON ga.personId = st.personId;
 
--- INCIDENT LOCATION
--- The final output forwards every record from ENRICHMENT_VIEW without validating the enriched values.
+-- FIX APPLIED: Added WHERE clause to filter out records where serviceDate is NULL or empty,
+-- enforcing Business Requirement §4 (no NULL/empty serviceDate may be published).
 CREATE TEMPORARY VIEW FINAL_OUTPUT AS
 SELECT
     personId,
     recordType,
     serviceDate,
     employeeRecord
-FROM ENRICHMENT_VIEW;
+FROM ENRICHMENT_VIEW
+WHERE serviceDate IS NOT NULL AND TRIM(serviceDate) <> '';
 
 -- Intended sink (not included in this demo): FINAL_OUTPUT -> Kafka topic

@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Employee Enrichment Pipeline — IBM Hackathon 2026</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--surface:#161b22;--surface2:#21262d;--border:#30363d;
+  --text:#e6edf3;--muted:#8b949e;--green:#3fb950;--red:#f85149;
+  --yellow:#d29922;--blue:#58a6ff;--cyan:#39c5cf;--purple:#bc8cff;
+  --green-bg:rgba(63,185,80,.1);--red-bg:rgba(248,81,73,.1);
+  --yellow-bg:rgba(210,153,34,.1);
+}
+html{font-size:14px;scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,"Segoe UI",system-ui,sans-serif;line-height:1.6;min-height:100vh}
+
+/* ─── Layout ─────────────────────────────────────────── */
+.shell{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+@media(max-width:700px){.shell{grid-template-columns:1fr}}
+
+/* ─── Sidebar ────────────────────────────────────────── */
+.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:24px 0;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sidebar-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:0 20px 12px}
+.nav-item{display:block;padding:8px 20px;color:var(--muted);text-decoration:none;font-size:13px;border-left:3px solid transparent;transition:all .15s}
+.nav-item:hover,.nav-item.active{color:var(--text);border-left-color:var(--blue);background:rgba(88,166,255,.06)}
+.sidebar-section{margin-top:24px}
+@media(max-width:700px){.sidebar{display:none}}
+
+/* ─── Main content ───────────────────────────────────── */
+.main{padding:32px 36px;max-width:900px}
+
+/* ─── Header ─────────────────────────────────────────── */
+.page-header{border-bottom:1px solid var(--border);padding-bottom:20px;margin-bottom:32px}
+.page-header h1{font-size:22px;font-weight:700;color:var(--text)}
+.page-header p{color:var(--muted);font-size:13px;margin-top:4px}
+.badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid}
+.badge-red{color:var(--red);border-color:rgba(248,81,73,.4);background:var(--red-bg)}
+.badge-green{color:var(--green);border-color:rgba(63,185,80,.4);background:var(--green-bg)}
+.badge-blue{color:var(--blue);border-color:rgba(88,166,255,.3);background:rgba(88,166,255,.08)}
+.badge-yellow{color:var(--yellow);border-color:rgba(210,153,34,.4);background:var(--yellow-bg)}
+
+/* ─── Section titles ─────────────────────────────────── */
+.section{margin-bottom:40px;scroll-margin-top:24px}
+h2{font-size:15px;font-weight:700;color:var(--text);margin-bottom:12px;
+   display:flex;align-items:center;gap:8px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+h2 .icon{font-size:16px}
+h3{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:16px 0 8px}
+
+/* ─── Run button ─────────────────────────────────────── */
+.run-bar{display:flex;align-items:center;gap:12px;margin-bottom:28px}
+.btn{padding:8px 20px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid;transition:all .15s;font-family:inherit}
+.btn-primary{background:var(--blue);color:#0d1117;border-color:var(--blue)}
+.btn-primary:hover{background:#79b8ff}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.run-status{font-size:13px;color:var(--muted)}
+.run-status.ok{color:var(--green)}
+.run-status.err{color:var(--red)}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ─── Pipeline diagram ───────────────────────────────── */
+.pipeline-diagram{display:flex;align-items:center;flex-wrap:wrap;gap:4px;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:8px}
+.pipe-node{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 14px;text-align:center;min-width:110px}
+.pipe-node .pn-label{font-size:12px;font-weight:700;color:var(--text)}
+.pipe-node .pn-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.pipe-node.broken{border-color:rgba(248,81,73,.5);background:rgba(248,81,73,.06)}
+.pipe-node.broken .pn-label{color:var(--red)}
+.pipe-node.fixed{border-color:rgba(63,185,80,.5);background:rgba(63,185,80,.06)}
+.pipe-node.fixed .pn-label{color:var(--green)}
+.pipe-arrow{color:var(--muted);font-size:18px;padding:0 4px;flex-shrink:0}
+
+/* ─── Tables ─────────────────────────────────────────── */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:6px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead tr{background:var(--surface2)}
+th{padding:8px 12px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);border-bottom:1px solid var(--border)}
+td{padding:8px 12px;border-bottom:1px solid rgba(48,54,61,.6)}
+tr:last-child td{border-bottom:none}
+.val-null{color:var(--red);font-style:italic}
+.val-ok{color:var(--cyan);font-family:"Cascadia Code","Consolas",monospace}
+.val-class-st{color:var(--blue);font-weight:600}
+.val-class-ga{color:var(--purple);font-weight:600}
+.tag-pass{color:var(--green);font-weight:600}
+.tag-fail{color:var(--red);font-weight:600}
+tr.row-bad{background:rgba(248,81,73,.05)}
+tr.row-good{background:rgba(63,185,80,.03)}
+
+/* ─── Split panels ───────────────────────────────────── */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:620px){.split{grid-template-columns:1fr}}
+.panel{border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.panel-header{padding:8px 14px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border)}
+.ph-red{background:rgba(248,81,73,.12);color:var(--red)}
+.ph-green{background:rgba(63,185,80,.12);color:var(--green)}
+
+/* ─── Code / pre ─────────────────────────────────────── */
+pre,code{font-family:"Cascadia Code","Fira Code","Consolas",monospace}
+pre{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px 16px;overflow-x:auto;font-size:12.5px;line-height:1.6;margin:8px 0}
+.panel pre{border:none;border-radius:0;margin:0}
+.diff-add{color:var(--green);display:block;background:rgba(63,185,80,.07)}
+.diff-rem{color:var(--red);display:block;background:rgba(248,81,73,.07)}
+.diff-ctx{color:var(--muted);display:block}
+
+/* ─── Log block ──────────────────────────────────────── */
+.log-block{background:#090d13;border:1px solid var(--border);border-radius:6px;padding:14px 16px;font-family:"Cascadia Code","Consolas",monospace;font-size:12px;line-height:1.8;overflow-x:auto}
+.log-info{color:#4caf87}
+.log-warn{color:var(--yellow)}
+.log-hi{background:rgba(210,153,34,.18);border-radius:3px;padding:1px 4px}
+.log-ts{color:#3d4f5e}
+
+/* ─── Test grid ──────────────────────────────────────── */
+.test-list{display:flex;flex-direction:column;gap:6px}
+.test-row{display:flex;align-items:flex-start;gap:12px;padding:10px 14px;border:1px solid var(--border);border-radius:6px;background:var(--surface);border-left:3px solid var(--border)}
+.test-row.pass{border-left-color:var(--green)}
+.test-row.fail{border-left-color:var(--red)}
+.test-icon{font-size:15px;flex-shrink:0;margin-top:2px}
+.test-title{font-weight:600;font-size:13px;color:var(--text)}
+.test-detail{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* ─── Summary bar ────────────────────────────────────── */
+.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sum-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px 20px}
+.sum-card .sc-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px}
+.sum-card .sc-stat{font-size:24px;font-weight:700;margin-bottom:4px}
+.sum-card .sc-detail{font-size:12px;color:var(--muted)}
+.stat-red{color:var(--red)}
+.stat-green{color:var(--green)}
+
+/* ─── Match badge ────────────────────────────────────── */
+.match-badge{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:6px;font-size:13px;font-weight:600;border:1px solid}
+.match-yes{color:var(--green);border-color:rgba(63,185,80,.4);background:var(--green-bg)}
+.match-no{color:var(--red);border-color:rgba(248,81,73,.4);background:var(--red-bg)}
+
+/* ─── Empty state ────────────────────────────────────── */
+.empty-state{text-align:center;padding:40px 20px;color:var(--muted);background:var(--surface);border:1px dashed var(--border);border-radius:8px}
+.empty-state .es-icon{font-size:32px;margin-bottom:8px}
+.empty-state p{font-size:13px}
+
+/* ─── Callout ────────────────────────────────────────── */
+.callout{padding:12px 16px;border-radius:6px;border:1px solid;font-size:13px;margin:10px 0;line-height:1.6}
+.callout-red{border-color:rgba(248,81,73,.4);background:var(--red-bg);color:#ffadab}
+.callout-green{border-color:rgba(63,185,80,.4);background:var(--green-bg);color:#9cf59c}
+.callout-blue{border-color:rgba(88,166,255,.3);background:rgba(88,166,255,.06);color:#a5c8ff}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ═══ SIDEBAR ═══════════════════════════════════════════════════════════ -->
+  <nav class="sidebar">
+    <div class="sidebar-title">Navigation</div>
+    <div class="sidebar-section">
+      <a class="nav-item active" href="#overview">Overview</a>
+      <a class="nav-item" href="#pipeline">Pipeline</a>
+      <a class="nav-item" href="#input">Input Events</a>
+      <a class="nav-item" href="#log">Pipeline Log</a>
+      <a class="nav-item" href="#before">Before Fix</a>
+      <a class="nav-item" href="#after">After Fix</a>
+      <a class="nav-item" href="#diff">SQL Diff</a>
+      <a class="nav-item" href="#tests">Acceptance Tests</a>
+      <a class="nav-item" href="#comparison">Output Match</a>
+      <a class="nav-item" href="#summary">Summary</a>
+    </div>
+  </nav>
+
+  <!-- ═══ MAIN ═══════════════════════════════════════════════════════════════ -->
+  <main class="main">
+
+    <!-- Header -->
+    <div class="page-header" id="overview">
+      <h1>Employee Enrichment Pipeline</h1>
+      <p>NULL serviceDate Publication Bug — IBM Hackathon 2026 Live Demo</p>
+      <div class="badges">
+        <span class="badge badge-red">Severity: High</span>
+        <span class="badge badge-green">Status: Fixed</span>
+        <span class="badge badge-blue">flink/employee_enrichment.sql</span>
+        <span class="badge badge-yellow">Business Rule §4 Violated</span>
+      </div>
+    </div>
+
+    <!-- Run bar -->
+    <div class="run-bar">
+      <button class="btn btn-primary" id="runBtn">▶  Run Pipeline Demo</button>
+      <span class="run-status" id="runStatus"></span>
+    </div>
+
+    <!-- ── Pipeline diagram ─────────────────────────────────────────────── -->
+    <div class="section" id="pipeline">
+      <h2><span class="icon">⚙️</span> Pipeline Architecture</h2>
+      <div class="pipeline-diagram">
+        <div class="pipe-node">
+          <div class="pn-label">EMPLOYEE_EVENTS</div>
+          <div class="pn-sub">Input stream · 4 events</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">
+          <div class="pn-label">ST_OUTPUT</div>
+          <div class="pn-sub">assignmentClass='ST'</div>
+        </div>
+        <div class="pipe-arrow">+</div>
+        <div class="pipe-node">
+          <div class="pn-label">GA_OUTPUT</div>
+          <div class="pn-sub">assignmentClass='GA'</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">
+          <div class="pn-label">ENRICHMENT_VIEW</div>
+          <div class="pn-sub">UNION ALL + LEFT JOIN</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node broken" id="finalNode">
+          <div class="pn-label">FINAL_OUTPUT</div>
+          <div class="pn-sub" id="finalNodeSub">❌ No WHERE guard</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">
+          <div class="pn-label">Kafka Sink</div>
+          <div class="pn-sub">Published output</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Input events ─────────────────────────────────────────────────── -->
+    <div class="section" id="input">
+      <h2><span class="icon">📥</span> Input Events</h2>
+      <div class="tbl-wrap">
+        <table id="inputTable">
+          <thead><tr><th>eventId</th><th>personId</th><th>assignmentClass</th><th>serviceDate</th></tr></thead>
+          <tbody id="inputTbody">
+            <tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">Click "Run Pipeline Demo" to load data</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Pipeline log ─────────────────────────────────────────────────── -->
+    <div class="section" id="log">
+      <h2><span class="icon">📋</span> Pipeline Log</h2>
+      <div class="callout callout-blue">Two WARN entries detected the problem — but neither prevented publication.</div>
+      <div class="log-block" id="logBlock">
+        <span style="color:var(--muted)">Click "Run Pipeline Demo" to see the log...</span>
+      </div>
+    </div>
+
+    <!-- ── Before fix ───────────────────────────────────────────────────── -->
+    <div class="section" id="before">
+      <h2><span class="icon">❌</span> Before Fix — Broken FINAL_OUTPUT</h2>
+      <div class="callout callout-red"><strong>No WHERE guard</strong> — every row from ENRICHMENT_VIEW passes through, including personId=103 with <code>serviceDate=null</code>.</div>
+      <pre style="margin-bottom:12px"><span style="color:var(--muted)">CREATE TEMPORARY VIEW FINAL_OUTPUT AS</span>
+<span style="color:var(--muted)">SELECT personId, recordType, serviceDate, employeeRecord</span>
+<span style="color:var(--red)">FROM ENRICHMENT_VIEW;   -- ← no filter, NULL leaks through</span></pre>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>personId</th><th>recordType</th><th>serviceDate</th><th>status</th></tr></thead>
+          <tbody id="brokenTbody">
+            <tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">Run the demo to see output</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="brokenCount" style="color:var(--muted);font-size:12px;margin-top:8px"></div>
+    </div>
+
+    <!-- ── After fix ────────────────────────────────────────────────────── -->
+    <div class="section" id="after">
+      <h2><span class="icon">✅</span> After Fix — Fixed FINAL_OUTPUT</h2>
+      <div class="callout callout-green"><strong>WHERE guard added</strong> — records with NULL or empty serviceDate are blocked before reaching the Kafka sink.</div>
+      <pre style="margin-bottom:12px"><span style="color:var(--muted)">CREATE TEMPORARY VIEW FINAL_OUTPUT AS</span>
+<span style="color:var(--muted)">SELECT personId, recordType, serviceDate, employeeRecord</span>
+<span style="color:var(--green)">FROM ENRICHMENT_VIEW</span>
+<span style="color:var(--green)">WHERE serviceDate IS NOT NULL AND TRIM(serviceDate) &lt;&gt; '';</span></pre>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>personId</th><th>recordType</th><th>serviceDate</th><th>status</th></tr></thead>
+          <tbody id="fixedTbody">
+            <tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">Run the demo to see output</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="fixedCount" style="color:var(--muted);font-size:12px;margin-top:8px"></div>
+    </div>
+
+    <!-- ── SQL diff ─────────────────────────────────────────────────────── -->
+    <div class="section" id="diff">
+      <h2><span class="icon">🔧</span> SQL Diff — Minimal Fix</h2>
+      <pre><span class="diff-ctx"> CREATE TEMPORARY VIEW FINAL_OUTPUT AS</span>
+<span class="diff-ctx"> SELECT personId, recordType, serviceDate, employeeRecord</span>
+<span class="diff-rem">-FROM ENRICHMENT_VIEW;</span>
+<span class="diff-add">+FROM ENRICHMENT_VIEW</span>
+<span class="diff-add">+WHERE serviceDate IS NOT NULL AND TRIM(serviceDate) &lt;&gt; '';</span></pre>
+      <p style="font-size:12px;color:var(--muted);margin-top:6px">
+        1 line removed &nbsp;·&nbsp; 2 lines added &nbsp;·&nbsp;
+        No other views modified &nbsp;·&nbsp; Change localised entirely to <code>FINAL_OUTPUT</code>
+      </p>
+    </div>
+
+    <!-- ── Acceptance tests ─────────────────────────────────────────────── -->
+    <div class="section" id="tests">
+      <h2><span class="icon">🧪</span> Acceptance Tests</h2>
+      <div class="split" style="margin-bottom:16px">
+        <div>
+          <h3>Before Fix</h3>
+          <div class="test-list" id="brokenTests">
+            <div class="empty-state"><div class="es-icon">⏳</div><p>Run the demo to see test results</p></div>
+          </div>
+        </div>
+        <div>
+          <h3>After Fix</h3>
+          <div class="test-list" id="fixedTests">
+            <div class="empty-state"><div class="es-icon">⏳</div><p>Run the demo to see test results</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Output comparison ────────────────────────────────────────────── -->
+    <div class="section" id="comparison">
+      <h2><span class="icon">🔍</span> Output vs expected_output.json</h2>
+      <div id="matchBadge" style="margin-bottom:12px">
+        <div class="empty-state"><div class="es-icon">⏳</div><p>Run the demo to check</p></div>
+      </div>
+      <div class="split">
+        <div class="panel">
+          <div class="panel-header ph-red">❌ Before — actual_output (defective)</div>
+          <pre id="brokenJson" style="padding:14px;font-size:12px;min-height:80px;color:var(--muted)">...</pre>
+        </div>
+        <div class="panel">
+          <div class="panel-header ph-green">✅ After — actual_output (corrected)</div>
+          <pre id="fixedJson" style="padding:14px;font-size:12px;min-height:80px;color:var(--muted)">...</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Summary ──────────────────────────────────────────────────────── -->
+    <div class="section" id="summary">
+      <h2><span class="icon">📊</span> Summary</h2>
+      <div class="summary-grid" id="summaryGrid">
+        <div class="sum-card">
+          <div class="sc-title">Before Fix</div>
+          <div class="sc-stat stat-red" id="sumBefore">—</div>
+          <div class="sc-detail">tests passing</div>
+        </div>
+        <div class="sum-card">
+          <div class="sc-title">After Fix</div>
+          <div class="sc-stat stat-green" id="sumAfter">—</div>
+          <div class="sc-detail">tests passing</div>
+        </div>
+        <div class="sum-card" style="grid-column:1/-1">
+          <div class="sc-title">Fix Applied</div>
+          <div style="font-size:13px;margin-top:4px;color:var(--text)">
+            1 WHERE clause added to <code>FINAL_OUTPUT</code> in <code>flink/employee_enrichment.sql</code>
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px">Business Requirement §4 — no NULL/empty serviceDate may be published</div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+function sdCell(sd) {
+  if (sd === null || sd === undefined) return `<td><span class="val-null">null</span></td>`;
+  return `<td><span class="val-ok">${sd}</span></td>`;
+}
+function classCell(cls) {
+  const c = cls === "ST" ? "val-class-st" : "val-class-ga";
+  return `<td><span class="${c}">${cls}</span></td>`;
+}
+function statusCell(sd) {
+  if (sd === null || sd === undefined) return `<td><span class="tag-fail">❌ NULL serviceDate</span></td>`;
+  return `<td><span class="tag-pass">✅ valid</span></td>`;
+}
+function testRow(t) {
+  const cls    = t.pass ? "pass" : "fail";
+  const icon   = t.pass ? "✅" : "❌";
+  const status = t.pass ? "PASS" : "FAIL";
+  return `<div class="test-row ${cls}">
+    <div class="test-icon">${icon}</div>
+    <div>
+      <div class="test-title">Test ${t.id} — ${t.name} <span class="${t.pass?"tag-pass":"tag-fail"}">${status}</span></div>
+      <div class="test-detail">${t.detail}</div>
+    </div>
+  </div>`;
+}
+function jsonHL(obj) {
+  return JSON.stringify(obj, null, 2)
+    .replace(/"serviceDate": null/g, `"serviceDate": <span style="color:var(--red)">null</span>`)
+    .replace(/"serviceDate": "([^"]+)"/g, `"serviceDate": <span style="color:var(--cyan)">"$1"</span>`)
+    .replace(/"personId": "(\d+)"/g, `"personId": <span style="color:var(--purple)">"$1"</span>`)
+    .replace(/"recordType": "([^"]+)"/g, `"recordType": <span style="color:var(--blue)">"$1"</span>`);
+}
+
+// ─── Run pipeline ─────────────────────────────────────────────────────────────
+$("runBtn").addEventListener("click", async () => {
+  const btn = $("runBtn");
+  const status = $("runStatus");
+  btn.disabled = true;
+  status.className = "run-status";
+  status.innerHTML = `<span class="spinner"></span>Running…`;
+
+  try {
+    const res  = await fetch("/api/run-pipeline", { method:"POST" });
+    const data = await res.json();
+
+    // ── Input table
+    $("inputTbody").innerHTML = data.inputEvents.map(e => `<tr>
+      <td style="color:var(--muted);font-family:monospace;font-size:12px">${e.eventId}</td>
+      <td><strong>${e.personId}</strong></td>
+      ${classCell(e.assignmentClass)}
+      ${sdCell(e.serviceDate)}
+    </tr>`).join("");
+
+    // ── Log
+    $("logBlock").innerHTML = data.logLines.map(l => {
+      const ts  = `<span class="log-ts">2026-08-29T10:00:xxZ</span>`;
+      const lvl = l.level === "WARN"
+        ? `<span class="log-warn">WARN </span>`
+        : `<span class="log-info">INFO </span>`;
+      const msg = l.level === "WARN"
+        ? `<span class="log-warn${l.highlight?" log-hi":""}">${l.msg}</span>`
+        : l.highlight
+          ? `<span class="log-hi">${l.msg}</span>`
+          : l.msg;
+      return `<div>${ts} ${lvl} ${msg}</div>`;
+    }).join("");
+
+    // ── Broken output table
+    $("brokenTbody").innerHTML = data.brokenOutput.map(r => {
+      const bad = !r.serviceDate;
+      return `<tr class="${bad?"row-bad":""}">
+        <td>${r.personId}</td>
+        <td>${r.recordType}</td>
+        ${sdCell(r.serviceDate)}
+        ${statusCell(r.serviceDate)}
+      </tr>`;
+    }).join("");
+    const inv = data.brokenOutput.filter(r => !r.serviceDate).length;
+    $("brokenCount").textContent = `${data.brokenOutput.length} records published (${inv} invalid)`;
+
+    // ── Fixed output table
+    $("fixedTbody").innerHTML = data.fixedOutput.map(r => `<tr class="row-good">
+      <td>${r.personId}</td>
+      <td>${r.recordType}</td>
+      ${sdCell(r.serviceDate)}
+      ${statusCell(r.serviceDate)}
+    </tr>`).join("");
+    $("fixedCount").textContent = `${data.fixedOutput.length} records published (all valid)`;
+
+    // ── Pipeline node status
+    const node = $("finalNode");
+    node.classList.remove("broken");
+    node.classList.add("fixed");
+    $("finalNodeSub").textContent = "✅ WHERE guard active";
+
+    // ── Test grids
+    $("brokenTests").innerHTML = data.brokenTests.map(testRow).join("");
+    $("fixedTests").innerHTML  = data.fixedTests.map(testRow).join("");
+
+    // ── JSON comparison
+    $("brokenJson").innerHTML = jsonHL(data.brokenOutput);
+    $("fixedJson").innerHTML  = jsonHL(data.fixedOutput);
+    $("matchBadge").innerHTML = data.outputMatch
+      ? `<span class="match-badge match-yes">✅ actual_output matches expected_output.json exactly (order-independent)</span>`
+      : `<span class="match-badge match-no">❌ Mismatch — check console for diff</span>`;
+
+    // ── Summary
+    const bp = data.brokenTests.filter(t =>  t.pass).length;
+    const bf = data.brokenTests.filter(t => !t.pass).length;
+    const fp = data.fixedTests.filter(t =>  t.pass).length;
+    $("sumBefore").innerHTML = `<span class="stat-green">${bp} pass</span> / <span class="stat-red">${bf} fail</span>`;
+    $("sumAfter").innerHTML  = `<span class="stat-green">${fp} pass</span> / <span style="color:var(--muted)">${data.fixedTests.filter(t=>!t.pass).length} fail</span>`;
+
+    status.className  = "run-status ok";
+    status.textContent = "✅ Pipeline executed successfully";
+
+    // Highlight active nav on scroll
+    document.querySelectorAll(".nav-item").forEach(a => a.classList.remove("active"));
+    document.querySelector('.nav-item[href="#overview"]').classList.add("active");
+
+  } catch (err) {
+    status.className  = "run-status err";
+    status.textContent = "❌ Error: " + err.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ─── Active nav on scroll ─────────────────────────────────────────────────────
+const sections = ["overview","pipeline","input","log","before","after","diff","tests","comparison","summary"];
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      document.querySelectorAll(".nav-item").forEach(a => a.classList.remove("active"));
+      const link = document.querySelector(`.nav-item[href="#${e.target.id}"]`);
+      if (link) link.classList.add("active");
+    }
+  });
+}, { threshold: 0.4 });
+sections.forEach(id => { const el = document.getElementById(id); if(el) observer.observe(el); });
+</script>
+</body>
+</html>
